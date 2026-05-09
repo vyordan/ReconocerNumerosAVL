@@ -12,9 +12,7 @@ import threading
 from avl_tree import ArbolAVL
 from ocr_processor import OCRProcessor
 
-# -------------------------------------------------------------------
 #  Ventana para visualizar el árbol AVL
-# -------------------------------------------------------------------
 class VentanaArbol(tk.Toplevel):
     """Ventana que dibuja el árbol AVL en un canvas con scroll."""
     def __init__(self, parent, arbol_avl):
@@ -146,9 +144,7 @@ class VentanaArbol(tk.Toplevel):
         self._dibujar_arbol(nodo.derecha, coords)
 
 
-# -------------------------------------------------------------------
 #  CLASE PRINCIPAL DE LA APLICACIÓN (estética modificada)
-# -------------------------------------------------------------------
 class AplicacionOCRAVL:
     def __init__(self, ventana):
         self.ventana = ventana
@@ -462,7 +458,8 @@ class AplicacionOCRAVL:
             if not self.modelo_cargado:
                 self.cargar_modelo_ocr()
 
-            self.camara = cv2.VideoCapture(0)
+            self.camara = cv2.VideoCapture(0) #este lo uso para la camara local, el de abajo es para la camara ip
+            #self.camara = cv2.VideoCapture('http://10.122.108.148:8080/video')
             if not self.camara.isOpened():
                 messagebox.showerror("Error", "No se puede acceder a la camara")
                 return
