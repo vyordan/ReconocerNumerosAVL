@@ -126,7 +126,7 @@ class ArbolAVL:
             return self._buscar_recursivo(nodo.derecha, valor)
     
     def recorrido_inorden(self):
-        """Retorna los valores del árbol en orden"""
+        """Retorna los valores del árbol en orden (Izquierda-Raíz-Derecha)"""
         valores = []
         self._inorden_recursivo(self.raiz, valores)
         return valores
@@ -137,6 +137,32 @@ class ArbolAVL:
             self._inorden_recursivo(nodo.izquierda, valores)
             valores.append(nodo.valor)
             self._inorden_recursivo(nodo.derecha, valores)
+    
+    def recorrido_preorden(self):
+        """Retorna los valores del árbol en preorden (Raíz-Izquierda-Derecha)"""
+        valores = []
+        self._preorden_recursivo(self.raiz, valores)
+        return valores
+    
+    def _preorden_recursivo(self, nodo, valores):
+        """Recorrido preorden recursivo"""
+        if nodo:
+            valores.append(nodo.valor)
+            self._preorden_recursivo(nodo.izquierda, valores)
+            self._preorden_recursivo(nodo.derecha, valores)
+    
+    def recorrido_postorden(self):
+        """Retorna los valores del árbol en postorden (Izquierda-Derecha-Raíz)"""
+        valores = []
+        self._postorden_recursivo(self.raiz, valores)
+        return valores
+    
+    def _postorden_recursivo(self, nodo, valores):
+        """Recorrido postorden recursivo"""
+        if nodo:
+            self._postorden_recursivo(nodo.izquierda, valores)
+            self._postorden_recursivo(nodo.derecha, valores)
+            valores.append(nodo.valor)
     
     def obtener_estructura_visual(self):
         """Obtiene la estructura del árbol para visualización"""

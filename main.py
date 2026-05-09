@@ -5,7 +5,7 @@ Usa EasyOCR para reconocimiento de números manuscritos
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, scrolledtext
 import cv2
 from PIL import Image, ImageTk
 import threading
@@ -25,6 +25,7 @@ class AplicacionOCRAVL:
         self.camara = None
         self.camara_activa = False
         self.ultimo_numero = None
+        self.ultima_confianza = 0.0
         self.modelo_cargado = False
         
         # Crear interfaz
@@ -37,10 +38,10 @@ class AplicacionOCRAVL:
         """Crea todos los componentes de la interfaz"""
         
         # Frame principal dividido en 2 columnas
-        frame_izquierdo = tk.Frame(self.ventana, bg='#34495e', width=600)
+        frame_izquierdo = tk.Frame(self.ventana, bg='#34495e', width=700)
         frame_izquierdo.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        frame_derecho = tk.Frame(self.ventana, bg='#34495e', width=600)
+        frame_derecho = tk.Frame(self.ventana, bg='#34495e', width=500)
         frame_derecho.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # ===== PANEL IZQUIERDO: CÁMARA Y CONTROLES =====
@@ -74,7 +75,7 @@ class AplicacionOCRAVL:
         self.label_procesada = tk.Label(frame_procesada, bg='black')
         self.label_procesada.pack()
         
-        # Número detectado
+        # Número detectado con confianza
         self.label_numero_detectado = tk.Label(
             frame_izquierdo,
             text="Número detectado: --",
@@ -82,7 +83,16 @@ class AplicacionOCRAVL:
             bg='#34495e',
             fg='#3498db'
         )
-        self.label_numero_detectado.pack(pady=10)
+        self.label_numero_detectado.pack(pady=5)
+        
+        self.label_confianza = tk.Label(
+            frame_izquierdo,
+            text="Confianza: --%",
+            font=('Arial', 10),
+            bg='#34495e',
+            fg='#bdc3c7'
+        )
+        self.label_confianza.pack(pady=2)
         
         # Label de estado (para mostrar "Cargando modelo...")
         self.label_estado = tk.Label(
@@ -152,52 +162,91 @@ class AplicacionOCRAVL:
         )
         self.btn_limpiar.grid(row=1, column=1, padx=5, pady=5)
         
-        # ===== PANEL DERECHO: ÁRBOL AVL =====
+        # ===== PANEL DERECHO: RECORRIDOS DEL ÁRBOL =====
         
         # Título
         titulo_arbol = tk.Label(
             frame_derecho,
-            text="ÁRBOL AVL",
+            text="🌲 ÁRBOL AVL - RECORRIDOS",
             font=('Arial', 16, 'bold'),
             bg='#34495e',
             fg='#ecf0f1'
         )
         titulo_arbol.pack(pady=10)
         
-        # Canvas para dibujar el árbol
-        canvas_frame = tk.Frame(frame_derecho, bg='white')
-        canvas_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
-        self.canvas_arbol = tk.Canvas(
-            canvas_frame,
-            bg='white',
-            highlightthickness=1,
-            highlightbackground='#7f8c8d'
-        )
-        self.canvas_arbol.pack(fill=tk.BOTH, expand=True)
-        
         # Información del árbol
-        frame_info = tk.Frame(frame_derecho, bg='#34495e')
-        frame_info.pack(pady=10)
+        frame_info = tk.Frame(frame_derecho, bg='#2c3e50', relief=tk.RIDGE, borderwidth=2)
+        frame_info.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
+        # Cantidad de nodos
         self.label_cantidad = tk.Label(
             frame_info,
             text="Números en árbol: 0",
-            font=('Arial', 12),
-            bg='#34495e',
+            font=('Arial', 14, 'bold'),
+            bg='#2c3e50',
             fg='#ecf0f1'
         )
-        self.label_cantidad.pack()
+        self.label_cantidad.pack(pady=15)
         
-        self.label_recorrido = tk.Label(
+        # Separador
+        tk.Frame(frame_info, height=2, bg='#7f8c8d').pack(fill=tk.X, padx=20, pady=10)
+        
+        # Recorrido InOrden
+        tk.Label(
             frame_info,
-            text="Recorrido InOrden: []",
-            font=('Arial', 10),
-            bg='#34495e',
-            fg='#bdc3c7',
-            wraplength=500
+            text="📊 Recorrido InOrden (ordenado):",
+            font=('Arial', 12, 'bold'),
+            bg='#2c3e50',
+            fg='#3498db'
+        ).pack(pady=5)
+        
+        self.text_inorden = scrolledtext.ScrolledText(
+            frame_info,
+            height=5,
+            font=('Courier', 11),
+            bg='#ecf0f1',
+            fg='#2c3e50',
+            wrap=tk.WORD
         )
-        self.label_recorrido.pack(pady=5)
+        self.text_inorden.pack(fill=tk.X, padx=20, pady=5)
+        
+        # Recorrido PreOrden
+        tk.Label(
+            frame_info,
+            text="🔽 Recorrido PreOrden:",
+            font=('Arial', 12, 'bold'),
+            bg='#2c3e50',
+            fg='#e74c3c'
+        ).pack(pady=5)
+        
+        self.text_preorden = scrolledtext.ScrolledText(
+            frame_info,
+            height=5,
+            font=('Courier', 11),
+            bg='#ecf0f1',
+            fg='#2c3e50',
+            wrap=tk.WORD
+        )
+        self.text_preorden.pack(fill=tk.X, padx=20, pady=5)
+        
+        # Recorrido PostOrden
+        tk.Label(
+            frame_info,
+            text="🔼 Recorrido PostOrden:",
+            font=('Arial', 12, 'bold'),
+            bg='#2c3e50',
+            fg='#27ae60'
+        ).pack(pady=5)
+        
+        self.text_postorden = scrolledtext.ScrolledText(
+            frame_info,
+            height=5,
+            font=('Courier', 11),
+            bg='#ecf0f1',
+            fg='#2c3e50',
+            wrap=tk.WORD
+        )
+        self.text_postorden.pack(fill=tk.X, padx=20, pady=5)
         
         # Instrucciones
         frame_instrucciones = tk.Frame(frame_derecho, bg='#2c3e50', relief=tk.RIDGE, borderwidth=2)
@@ -205,27 +254,25 @@ class AplicacionOCRAVL:
         
         instrucciones_texto = """
         📝 INSTRUCCIONES:
-        1. Escribe un número en papel o pizarra
-        2. Haz clic en 'Iniciar Cámara'
-        3. Muestra el número a la cámara
-        4. Haz clic en 'Capturar e Insertar'
-        5. El número se agregará al árbol AVL
+        1. Escribe un número GRANDE en papel blanco
+        2. Usa marcador negro o lápiz oscuro
+        3. Haz clic en 'Iniciar Cámara'
+        4. Muestra el número centrado a la cámara
+        5. Espera a ver confianza > 50%
+        6. Haz clic en 'Capturar e Insertar'
         
-        💡 Consejos:
-        • Escribe números grandes y claros
-        • Usa fondo de contraste (papel blanco/pizarra)
-        • Buena iluminación ayuda al reconocimiento
-        • EasyOCR funciona muy bien con escritura a mano
-        
-        ⚠️ Primera vez:
-        • El modelo se carga al iniciar la cámara
-        • Puede tardar 5-10 segundos la primera vez
+        💡 Tips para mejor detección:
+        • Números de 3-5 cm de alto
+        • Fondo blanco liso (papel/pizarra)
+        • Buena iluminación uniforme
+        • Centra el número en la cámara
+        • Mantén el papel quieto 2 segundos
         """
         
         tk.Label(
             frame_instrucciones,
             text=instrucciones_texto,
-            font=('Arial', 9),
+            font=('Arial', 8),
             bg='#2c3e50',
             fg='#ecf0f1',
             justify=tk.LEFT
@@ -281,7 +328,7 @@ class AplicacionOCRAVL:
             ret, frame = self.camara.read()
             if ret:
                 # Redimensionar frame
-                frame = cv2.resize(frame, (480, 360))
+                frame = cv2.resize(frame, (560, 420))
                 
                 # Convertir BGR a RGB
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -291,19 +338,29 @@ class AplicacionOCRAVL:
                 
                 # Intentar detectar número (solo si el modelo está cargado)
                 if self.modelo_cargado:
-                    numero = self.ocr_processor.extraer_numero(frame)
+                    numero, confianza = self.ocr_processor.extraer_numero(frame)
                     self.ultimo_numero = numero
+                    self.ultima_confianza = confianza
                     
                     # Actualizar label de número detectado
                     if numero is not None:
+                        color_confianza = '#2ecc71' if confianza > 0.5 else '#f39c12'
                         self.label_numero_detectado.config(
                             text=f"Número detectado: {numero}",
                             fg='#2ecc71'
+                        )
+                        self.label_confianza.config(
+                            text=f"Confianza: {confianza*100:.1f}%",
+                            fg=color_confianza
                         )
                     else:
                         self.label_numero_detectado.config(
                             text="Número detectado: --",
                             fg='#e74c3c'
+                        )
+                        self.label_confianza.config(
+                            text="Confianza: --%",
+                            fg='#bdc3c7'
                         )
                 
                 # Mostrar video original
@@ -313,7 +370,7 @@ class AplicacionOCRAVL:
                 self.label_video.configure(image=imgtk)
                 
                 # Mostrar imagen procesada (más pequeña)
-                procesada_small = cv2.resize(imagen_procesada, (240, 180))
+                procesada_small = cv2.resize(imagen_procesada, (280, 210))
                 img_proc = Image.fromarray(procesada_small)
                 imgtk_proc = ImageTk.PhotoImage(image=img_proc)
                 self.label_procesada.imgtk = imgtk_proc
@@ -333,6 +390,7 @@ class AplicacionOCRAVL:
         self.label_video.config(image='')
         self.label_procesada.config(image='')
         self.label_numero_detectado.config(text="Número detectado: --", fg='#3498db')
+        self.label_confianza.config(text="Confianza: --%", fg='#bdc3c7')
     
     def capturar_e_insertar(self):
         """Captura el número detectado y lo inserta en el árbol AVL"""
@@ -344,6 +402,16 @@ class AplicacionOCRAVL:
             return
         
         if self.ultimo_numero is not None:
+            # Advertir si la confianza es baja
+            if self.ultima_confianza < 0.5:
+                respuesta = messagebox.askyesno(
+                    "Confianza baja",
+                    f"La confianza es {self.ultima_confianza*100:.1f}%.\n"
+                    f"¿Seguro que quieres insertar {self.ultimo_numero}?"
+                )
+                if not respuesta:
+                    return
+            
             # Verificar si ya existe
             if self.arbol_avl.buscar(self.ultimo_numero):
                 messagebox.showwarning(
@@ -355,95 +423,40 @@ class AplicacionOCRAVL:
                 self.arbol_avl.insertar(self.ultimo_numero)
                 messagebox.showinfo(
                     "Éxito", 
-                    f"Número {self.ultimo_numero} insertado en el árbol"
+                    f"Número {self.ultimo_numero} insertado en el árbol\n"
+                    f"Confianza: {self.ultima_confianza*100:.1f}%"
                 )
-                self.dibujar_arbol()
-                self.actualizar_info_arbol()
+                self.actualizar_recorridos()
         else:
             messagebox.showwarning(
                 "Sin número", 
-                "No se ha detectado ningún número.\nAsegúrate de mostrar un número claro a la cámara."
+                "No se ha detectado ningún número.\n"
+                "Asegúrate de:\n"
+                "• Escribir números grandes y claros\n"
+                "• Usar fondo blanco y marcador oscuro\n"
+                "• Centrar el número en la cámara\n"
+                "• Mantener el papel quieto"
             )
     
-    def dibujar_arbol(self):
-        """Dibuja el árbol AVL en el canvas"""
-        self.canvas_arbol.delete("all")
-        
-        if not self.arbol_avl.raiz:
-            self.canvas_arbol.create_text(
-                self.canvas_arbol.winfo_width() // 2,
-                self.canvas_arbol.winfo_height() // 2,
-                text="Árbol vacío",
-                font=('Arial', 14),
-                fill='gray'
-            )
-            return
-        
-        # Obtener estructura del árbol
-        niveles = self.arbol_avl.obtener_estructura_visual()
-        
-        # Configuración de dibujo
-        ancho_canvas = self.canvas_arbol.winfo_width()
-        alto_canvas = self.canvas_arbol.winfo_height()
-        
-        if ancho_canvas <= 1:
-            ancho_canvas = 500
-        if alto_canvas <= 1:
-            alto_canvas = 400
-        
-        radio_nodo = 25
-        espacio_vertical = alto_canvas // (len(niveles) + 1)
-        
-        # Dibujar nodos y conexiones
-        nodos_coords = {}
-        
-        for nivel_idx, nivel in enumerate(niveles):
-            y = (nivel_idx + 1) * espacio_vertical
-            num_nodos = len(nivel)
-            espacio_horizontal = ancho_canvas // (num_nodos + 1)
-            
-            for idx, (valor, pos) in enumerate(nivel):
-                x = (idx + 1) * espacio_horizontal
-                nodos_coords[(nivel_idx, pos)] = (x, y)
-                
-                # Dibujar círculo del nodo
-                self.canvas_arbol.create_oval(
-                    x - radio_nodo, y - radio_nodo,
-                    x + radio_nodo, y + radio_nodo,
-                    fill='#3498db',
-                    outline='#2980b9',
-                    width=3
-                )
-                
-                # Dibujar valor
-                self.canvas_arbol.create_text(
-                    x, y,
-                    text=str(valor),
-                    font=('Arial', 12, 'bold'),
-                    fill='white'
-                )
-                
-                # Dibujar líneas a hijos
-                if nivel_idx < len(niveles) - 1:
-                    # Buscar hijos
-                    for valor_hijo, pos_hijo in niveles[nivel_idx + 1]:
-                        if pos_hijo == pos * 2 or pos_hijo == pos * 2 + 1:
-                            if (nivel_idx + 1, pos_hijo) in nodos_coords:
-                                x2, y2 = nodos_coords[(nivel_idx + 1, pos_hijo)]
-                                self.canvas_arbol.create_line(
-                                    x, y + radio_nodo,
-                                    x2, y2 - radio_nodo,
-                                    fill='#7f8c8d',
-                                    width=2
-                                )
-    
-    def actualizar_info_arbol(self):
-        """Actualiza la información del árbol"""
+    def actualizar_recorridos(self):
+        """Actualiza todos los recorridos del árbol"""
         cantidad = len(self.arbol_avl.numeros_insertados)
         self.label_cantidad.config(text=f"Números en árbol: {cantidad}")
         
-        recorrido = self.arbol_avl.recorrido_inorden()
-        self.label_recorrido.config(text=f"Recorrido InOrden: {recorrido}")
+        # Recorrido InOrden
+        inorden = self.arbol_avl.recorrido_inorden()
+        self.text_inorden.delete(1.0, tk.END)
+        self.text_inorden.insert(tk.END, str(inorden) if inorden else "[]")
+        
+        # Recorrido PreOrden
+        preorden = self.arbol_avl.recorrido_preorden()
+        self.text_preorden.delete(1.0, tk.END)
+        self.text_preorden.insert(tk.END, str(preorden) if preorden else "[]")
+        
+        # Recorrido PostOrden
+        postorden = self.arbol_avl.recorrido_postorden()
+        self.text_postorden.delete(1.0, tk.END)
+        self.text_postorden.insert(tk.END, str(postorden) if postorden else "[]")
     
     def limpiar_arbol(self):
         """Limpia todos los números del árbol"""
@@ -453,8 +466,7 @@ class AplicacionOCRAVL:
         )
         if respuesta:
             self.arbol_avl.limpiar()
-            self.dibujar_arbol()
-            self.actualizar_info_arbol()
+            self.actualizar_recorridos()
             messagebox.showinfo("Éxito", "Árbol limpiado correctamente")
     
     def cerrar_aplicacion(self):
