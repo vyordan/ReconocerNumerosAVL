@@ -27,6 +27,7 @@ class AplicacionOCRAVL:
         self.ultimo_numero = None
         self.ultima_confianza = 0.0
         self.modelo_cargado = False
+        self.ultimo_frame = None
         
         # Crear interfaz
         self.crear_interfaz()
@@ -254,19 +255,22 @@ class AplicacionOCRAVL:
         
         instrucciones_texto = """
         📝 INSTRUCCIONES:
-        1. Escribe un número GRANDE en papel blanco
-        2. Usa marcador negro o lápiz oscuro
+        1. Escribe un número GRANDE (3-5cm) en papel blanco
+        2. Usa marcador negro grueso o lápiz oscuro
         3. Haz clic en 'Iniciar Cámara'
-        4. Muestra el número centrado a la cámara
-        5. Espera a ver confianza > 50%
-        6. Haz clic en 'Capturar e Insertar'
+        4. Muestra el número centrado en la cámara
+        5. Haz clic en 'Capturar e Insertar'
+        6. Espera unos segundos mientras procesa
+        7. El número se insertará en el árbol
         
         💡 Tips para mejor detección:
-        • Números de 3-5 cm de alto
-        • Fondo blanco liso (papel/pizarra)
-        • Buena iluminación uniforme
-        • Centra el número en la cámara
-        • Mantén el papel quieto 2 segundos
+        • Papel blanco liso sin arrugas
+        • Iluminación uniforme (sin sombras)
+        • Número centrado y completo en cámara
+        • Mantén el papel quieto al capturar
+        
+        ⚡ Nota: El procesamiento tarda 2-5 segundos
+        por captura (normal en CPU)
         """
         
         tk.Label(
@@ -327,41 +331,17 @@ class AplicacionOCRAVL:
         while self.camara_activa:
             ret, frame = self.camara.read()
             if ret:
+                # Guardar el último frame para captura
+                self.ultimo_frame = frame.copy()
+                
                 # Redimensionar frame
                 frame = cv2.resize(frame, (560, 420))
                 
                 # Convertir BGR a RGB
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
-                # Procesar imagen para OCR
+                # Procesar imagen para visualización (sin OCR)
                 imagen_procesada = self.ocr_processor.obtener_imagen_procesada(frame)
-                
-                # Intentar detectar número (solo si el modelo está cargado)
-                if self.modelo_cargado:
-                    numero, confianza = self.ocr_processor.extraer_numero(frame)
-                    self.ultimo_numero = numero
-                    self.ultima_confianza = confianza
-                    
-                    # Actualizar label de número detectado
-                    if numero is not None:
-                        color_confianza = '#2ecc71' if confianza > 0.5 else '#f39c12'
-                        self.label_numero_detectado.config(
-                            text=f"Número detectado: {numero}",
-                            fg='#2ecc71'
-                        )
-                        self.label_confianza.config(
-                            text=f"Confianza: {confianza*100:.1f}%",
-                            fg=color_confianza
-                        )
-                    else:
-                        self.label_numero_detectado.config(
-                            text="Número detectado: --",
-                            fg='#e74c3c'
-                        )
-                        self.label_confianza.config(
-                            text="Confianza: --%",
-                            fg='#bdc3c7'
-                        )
                 
                 # Mostrar video original
                 img = Image.fromarray(frame_rgb)
@@ -401,41 +381,91 @@ class AplicacionOCRAVL:
             )
             return
         
-        if self.ultimo_numero is not None:
+        if self.ultimo_frame is None:
+            messagebox.showwarning(
+                "Sin imagen",
+                "No hay ninguna imagen capturada de la cámara."
+            )
+            return
+        
+        # Mostrar que está procesando
+        self.label_estado.config(
+            text="⏳ Procesando imagen... (puede tardar unos segundos)",
+            fg='#f39c12'
+        )
+        self.ventana.update()
+        
+        # Procesar en segundo plano
+        def procesar():
+            # Extraer número del último frame capturado
+            numero, confianza = self.ocr_processor.extraer_numero(self.ultimo_frame)
+            self.ultimo_numero = numero
+            self.ultima_confianza = confianza
+            
+            # Actualizar UI en el hilo principal
+            self.ventana.after(0, lambda: self.mostrar_resultado_captura(numero, confianza))
+        
+        threading.Thread(target=procesar, daemon=True).start()
+    
+    def mostrar_resultado_captura(self, numero, confianza):
+        """Muestra el resultado de la captura y pregunta si insertar"""
+        # Limpiar estado
+        self.label_estado.config(text="")
+        
+        # Actualizar labels
+        if numero is not None:
+            color_confianza = '#2ecc71' if confianza > 0.5 else '#f39c12'
+            self.label_numero_detectado.config(
+                text=f"Número detectado: {numero}",
+                fg='#2ecc71'
+            )
+            self.label_confianza.config(
+                text=f"Confianza: {confianza*100:.1f}%",
+                fg=color_confianza
+            )
+            
             # Advertir si la confianza es baja
-            if self.ultima_confianza < 0.5:
+            if confianza < 0.5:
                 respuesta = messagebox.askyesno(
                     "Confianza baja",
-                    f"La confianza es {self.ultima_confianza*100:.1f}%.\n"
-                    f"¿Seguro que quieres insertar {self.ultimo_numero}?"
+                    f"La confianza es {confianza*100:.1f}%.\n"
+                    f"¿Seguro que quieres insertar {numero}?"
                 )
                 if not respuesta:
                     return
             
             # Verificar si ya existe
-            if self.arbol_avl.buscar(self.ultimo_numero):
+            if self.arbol_avl.buscar(numero):
                 messagebox.showwarning(
                     "Duplicado", 
-                    f"El número {self.ultimo_numero} ya existe en el árbol"
+                    f"El número {numero} ya existe en el árbol"
                 )
             else:
                 # Insertar en árbol
-                self.arbol_avl.insertar(self.ultimo_numero)
+                self.arbol_avl.insertar(numero)
                 messagebox.showinfo(
                     "Éxito", 
-                    f"Número {self.ultimo_numero} insertado en el árbol\n"
-                    f"Confianza: {self.ultima_confianza*100:.1f}%"
+                    f"Número {numero} insertado en el árbol\n"
+                    f"Confianza: {confianza*100:.1f}%"
                 )
                 self.actualizar_recorridos()
         else:
+            self.label_numero_detectado.config(
+                text="Número detectado: --",
+                fg='#e74c3c'
+            )
+            self.label_confianza.config(
+                text="Confianza: --%",
+                fg='#bdc3c7'
+            )
             messagebox.showwarning(
                 "Sin número", 
                 "No se ha detectado ningún número.\n"
                 "Asegúrate de:\n"
-                "• Escribir números grandes y claros\n"
+                "• Escribir números grandes y claros (3-5 cm)\n"
                 "• Usar fondo blanco y marcador oscuro\n"
                 "• Centrar el número en la cámara\n"
-                "• Mantener el papel quieto"
+                "• Buena iluminación sin sombras"
             )
     
     def actualizar_recorridos(self):
